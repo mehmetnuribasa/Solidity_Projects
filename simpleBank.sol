@@ -5,7 +5,7 @@ contract SimpleBank {
     mapping (address => uint) private balances;
     address public owner;
 
-  // Log the event about a deposit being made by an address and its amount
+    // Log the event about a deposit being made by an address and its amount
     event LogDepositMade(address indexed accountAddress, uint amount);
 
     // Constructor is "payable" so it can receive the initial funding of 30, 
@@ -15,6 +15,18 @@ contract SimpleBank {
         /* Set the owner to the creator of this contract */
         owner = msg.sender;
         clientCount = 0;
+    }
+
+    /// @notice Only allow the function to be called by an enrolled customer
+    modifier onlyEnrolled() {
+        require(balances[msg.sender] > 0, "You must enroll first.");
+        _;
+    }
+
+    /// @notice Only allow the function to be called by the owner
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can perform this action.");
+        _;
     }
 
     /// @notice Enroll a customer with the bank, 
@@ -28,9 +40,14 @@ contract SimpleBank {
         return balances[msg.sender];
     }
 
+
     /// @notice Deposit ether into bank, requires method is "payable"
     /// @return The balance of the user after the deposit is made
-    function deposit() public payable returns (uint) {
+    function deposit() public payable onlyEnrolled returns (uint) {
+        // If we dont use modifier function(onlyEnrolled), we shuould use this way.
+        // Check if the user is enrolled
+        // require(balances[msg.sender] > 0, "You must enroll first.");
+
         balances[msg.sender] += msg.value;
         emit LogDepositMade(msg.sender, msg.value);
         return balances[msg.sender];
@@ -38,7 +55,7 @@ contract SimpleBank {
 
     /// @notice Withdraw ether from bank
     /// @return remainingBal The balance remaining for the user
-    function withdraw(uint withdrawAmount) public returns (uint remainingBal) {
+    function withdraw(uint withdrawAmount) public onlyEnrolled returns (uint remainingBal) {
         // Check enough balance available, otherwise just return balance
         if (withdrawAmount <= balances[msg.sender]) {
             balances[msg.sender] -= withdrawAmount;
@@ -59,9 +76,14 @@ contract SimpleBank {
         return balances[msg.sender];
     }
 
+    /// @notice Withdraw all ether from the contract, only callable by the owner
+    function withdrawAll() public onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+
     /// @notice Just reads balance of the account requesting, so "constant"
     /// @return The balance of the user
-    function balance() public view returns (uint) {
+    function balance() public view onlyEnrolled returns (uint) {
         return balances[msg.sender];
     }
 
